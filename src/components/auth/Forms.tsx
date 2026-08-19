@@ -53,7 +53,7 @@ export function LoginForm({ next }: { next?: string }) {
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate>
+    <form method="post" onSubmit={onSubmit} noValidate>
       {error && <Alert kind="error" message={error} />}
 
       <div className="mb-5">
@@ -121,7 +121,7 @@ export function RegisterForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate>
+    <form method="post" onSubmit={onSubmit} noValidate>
       {error && <Alert kind="error" message={error} />}
 
       <div className="mb-5">
@@ -186,7 +186,7 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate>
+    <form method="post" onSubmit={onSubmit} noValidate>
       {message && <Alert kind="success" message={message} />}
 
       <div className="mb-8">
@@ -229,7 +229,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
   }
 
   return (
-    <form onSubmit={onSubmit} noValidate>
+    <form method="post" onSubmit={onSubmit} noValidate>
       {error && <Alert kind="error" message={error} />}
 
       <div className="mb-8">

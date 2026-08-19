@@ -139,6 +139,13 @@ werden auf dem Admin-Dashboard prominent gemeldet.
 2. `APP_URL` exakt auf die öffentliche URL setzen (ohne Slash am Ende) – sie
    wird für Redirect-URLs, Rechnungslinks, Sitemap und den Origin-Abgleich des
    CSRF-Schutzes verwendet.
+
+   > **Häufiger Stolperstein:** Wird die Seite über einen anderen Host
+   > aufgerufen als in `APP_URL` steht (z.B. `127.0.0.1` statt `localhost`
+   > oder `www.` statt der Apex-Domain), lehnt die CSRF-Prüfung jede
+   > schreibende Anfrage mit `403` ab – Login und Checkout funktionieren dann
+   > nicht. Im Serverlog steht dazu `csrf_rejected reason=origin_mismatch`
+   > inklusive erwarteter und tatsächlicher Domain.
 3. Eine kanonische Domain wählen (mit oder ohne `www`) und die andere
    weiterleiten.
 

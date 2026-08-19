@@ -27,6 +27,13 @@ export async function guard(
   if (options.csrf !== false) {
     const check = await assertCsrf(request);
     if (!check.ok) {
+      // Der Grund bleibt serverseitig (keine Hinweise für Angreifer), ist aber
+      // für die Diagnose wichtig: `origin_mismatch` bedeutet fast immer, dass
+      // APP_URL nicht zur tatsächlich aufgerufenen Domain passt.
+      console.warn(
+        `csrf_rejected reason=${check.reason} path=${new URL(request.url).pathname} ` +
+          `origin=${request.headers.get("origin") ?? "-"} app_url=${env.APP_URL}`,
+      );
       return jsonError(403, "csrf_failed", "Sicherheitsprüfung fehlgeschlagen. Bitte Seite neu laden.");
     }
   }

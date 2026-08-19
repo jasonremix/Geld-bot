@@ -67,7 +67,7 @@ export function CheckoutForm({
   }
 
   return (
-    <form onSubmit={onSubmit} className="grid gap-12 lg:grid-cols-[1.3fr_1fr]" noValidate>
+    <form method="post" onSubmit={onSubmit} className="grid gap-12 lg:grid-cols-[1.3fr_1fr]" noValidate>
       <div>
         {sandbox && (
           <div className="mb-8 border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">

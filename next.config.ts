@@ -33,6 +33,9 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   serverExternalPackages: ["@prisma/adapter-pg", "nodemailer"],
+  // Nur Entwicklung: Next blockt /_next/*-Ressourcen bei abweichendem Host.
+  // Ohne diesen Eintrag lädt das Client-Bundle unter http://127.0.0.1:3000 nicht.
+  allowedDevOrigins: ["localhost", "127.0.0.1"],
   experimental: {
     optimizePackageImports: [],
   },

@@ -136,6 +136,11 @@ npm run create:admin -- admin@example.com "dein-sicheres-passwort"
 npm run dev                      # http://localhost:3000
 ```
 
+> Die Seite über **denselben Host** aufrufen, der in `APP_URL` steht
+> (Standard: `localhost`). Unter einem abweichenden Host – etwa `127.0.0.1` –
+> greift die CSRF-Origin-Prüfung und lehnt Login und Checkout mit `403` ab;
+> das Serverlog nennt dann `csrf_rejected reason=origin_mismatch`.
+
 Mit `PAYMENT_PROVIDER=sandbox` lässt sich der komplette Kaufablauf ohne echte
 Credentials testen: Der Checkout leitet auf `/checkout/sandbox`, dort wird eine
 Zahlung simuliert. Die Simulation erzeugt einen **regulär signierten Webhook**

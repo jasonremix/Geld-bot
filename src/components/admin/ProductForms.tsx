@@ -60,7 +60,7 @@ export function ProductCreateForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="card p-7">
+    <form method="post" onSubmit={onSubmit} className="card p-7">
       <p className="eyebrow">Neues Produkt</p>
 
       {error && (
@@ -208,7 +208,7 @@ export function FileUploader({ productId }: { productId: string }) {
   }
 
   return (
-    <form onSubmit={onSubmit} className="card p-7">
+    <form method="post" onSubmit={onSubmit} className="card p-7">
       <p className="eyebrow">Datei hochladen</p>
       <p className="mt-3 text-xs text-[var(--color-muted-2)]">
         Erlaubt: MP3, WAV, MIDI, ZIP, PDF sowie Preset-/Projektdateien. Die Datei wird ausserhalb

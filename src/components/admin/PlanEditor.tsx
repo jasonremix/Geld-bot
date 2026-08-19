@@ -57,7 +57,7 @@ export function PlanEditor({ plan }: { plan: EditablePlan }) {
   }
 
   return (
-    <form onSubmit={save} className="card p-7">
+    <form method="post" onSubmit={save} className="card p-7">
       <div className="flex items-center justify-between gap-4">
         <p className="eyebrow">{plan.key}</p>
         <label className="flex items-center gap-2 text-xs text-[var(--color-muted)]">

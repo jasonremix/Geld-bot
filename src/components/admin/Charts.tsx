@@ -20,7 +20,17 @@ export function RevenueBars({ points, currency = "EUR" }: { points: Point[]; cur
         </p>
       </div>
 
-      <div className="mt-8 flex h-48 items-end gap-[3px]" role="img" aria-label="Balkendiagramm Tagesumsatz">
+      {total === 0 && (
+        <p className="mt-8 border border-[var(--color-line)] px-4 py-3 text-sm text-[var(--color-muted)]">
+          Für diesen Zeitraum liegen keine bestätigten Zahlungen vor.
+        </p>
+      )}
+
+      <div
+        className={`mt-8 flex h-48 items-end gap-[3px] ${total === 0 ? "opacity-40" : ""}`}
+        role="img"
+        aria-label="Balkendiagramm Tagesumsatz"
+      >
         {points.map((point) => {
           const height = point.cents === 0 ? 2 : Math.max(4, Math.round((point.cents / max) * 100));
           return (
