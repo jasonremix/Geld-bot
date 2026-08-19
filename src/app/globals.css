@@ -1,0 +1,248 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------------- */
+/* Design-Tokens: Premium Electronic Music Label × Modern SaaS                 */
+/* Schwarz/Weiss, hoher Kontrast, grosse Typografie.                          */
+/* ------------------------------------------------------------------------- */
+@theme {
+  --color-ink: #050505;
+  --color-ink-soft: #0c0c0c;
+  --color-surface: #111111;
+  --color-surface-2: #171717;
+  --color-line: #262626;
+  --color-line-strong: #3a3a3a;
+  --color-paper: #fafafa;
+  --color-muted: #a1a1a1;
+  --color-muted-2: #6f6f6f;
+  --color-accent: #ffffff;
+
+  --font-display: "Helvetica Neue", "Inter", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", Roboto, Arial, sans-serif;
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
+    Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+
+::selection {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+/* Fokus bleibt sichtbar – Barrierefreiheit vor Optik. */
+:focus-visible {
+  outline: 2px solid var(--color-paper);
+  outline-offset: 3px;
+}
+
+/* --- Typografie ---------------------------------------------------------- */
+.display {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  line-height: 0.92;
+  text-transform: uppercase;
+}
+
+.eyebrow {
+  font-size: 0.6875rem;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.rule {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--color-line-strong) 20%,
+    var(--color-line-strong) 80%,
+    transparent
+  );
+}
+
+/* --- Oberflächen --------------------------------------------------------- */
+.card {
+  background: linear-gradient(180deg, var(--color-surface) 0%, var(--color-ink-soft) 100%);
+  border: 1px solid var(--color-line);
+  transition:
+    border-color 0.4s var(--ease-out-expo),
+    transform 0.4s var(--ease-out-expo);
+}
+
+.card:hover {
+  border-color: var(--color-line-strong);
+  transform: translateY(-3px);
+}
+
+.grain::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: radial-gradient(circle at 1px 1px, #fff 1px, transparent 0);
+  background-size: 4px 4px;
+}
+
+/* --- Buttons ------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.625rem;
+  padding: 1rem 2rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  border: 1px solid transparent;
+  transition: all 0.35s var(--ease-out-expo);
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+
+.btn-primary:hover {
+  background: transparent;
+  color: var(--color-paper);
+  border-color: var(--color-paper);
+}
+
+.btn-ghost {
+  border-color: var(--color-line-strong);
+  color: var(--color-paper);
+}
+
+.btn-ghost:hover {
+  border-color: var(--color-paper);
+  background: rgba(250, 250, 250, 0.06);
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* --- Formulare ----------------------------------------------------------- */
+.field {
+  width: 100%;
+  background: var(--color-ink-soft);
+  border: 1px solid var(--color-line);
+  color: var(--color-paper);
+  padding: 0.875rem 1rem;
+  font-size: 0.95rem;
+  transition: border-color 0.3s var(--ease-out-expo);
+}
+
+.field::placeholder {
+  color: var(--color-muted-2);
+}
+
+.field:focus {
+  border-color: var(--color-paper);
+  outline: none;
+}
+
+.label {
+  display: block;
+  font-size: 0.6875rem;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+  margin-bottom: 0.5rem;
+}
+
+/* --- Animationen --------------------------------------------------------- */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@keyframes pulse-line {
+  0%,
+  100% {
+    transform: scaleY(0.25);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(24px);
+}
+
+.reveal[data-visible="true"] {
+  animation: rise 0.9s var(--ease-out-expo) forwards;
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee 38s linear infinite;
+}
+
+.equalizer span {
+  display: block;
+  width: 3px;
+  height: 100%;
+  background: var(--color-paper);
+  transform-origin: bottom;
+  animation: pulse-line 1.4s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .reveal,
+  .reveal[data-visible="true"] {
+    opacity: 1;
+    transform: none;
+    animation: none;
+  }
+  .marquee-track,
+  .equalizer span {
+    animation: none;
+  }
+}

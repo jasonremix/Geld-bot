@@ -1,0 +1,19 @@
+node_modules
+# Keep environment variables out of version control
+.env
+
+/generated
+.next
+out
+storage
+storage-test
+coverage
+*.tsbuildinfo
+.env*.local
+.DS_Store
+
+# Von `prisma init` erzeugte Agent-Skills (nicht Teil der Anwendung)
+.agents
+.claude
+.windsurf
+skills-lock.json

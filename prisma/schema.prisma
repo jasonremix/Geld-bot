@@ -1,0 +1,478 @@
+// Geld-bot – Music Creator Hub
+// Prisma schema (PostgreSQL). Alle Beträge werden als Integer in Cent gespeichert,
+// um Rundungsfehler bei Geldbeträgen auszuschliessen.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum AdminRole {
+  SUPPORT
+  FINANCE
+  OWNER
+}
+
+enum PlanInterval {
+  MONTH
+  YEAR
+}
+
+enum SubscriptionStatus {
+  INCOMPLETE
+  ACTIVE
+  PAST_DUE
+  GRACE
+  CANCELED
+  EXPIRED
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  CANCELED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+  CHARGEBACK
+}
+
+enum WebhookStatus {
+  RECEIVED
+  PROCESSED
+  IGNORED
+  FAILED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  CREDITED
+}
+
+enum PayoutStatus {
+  PENDING
+  IN_TRANSIT
+  COMPLETED
+  FAILED
+  UNKNOWN
+}
+
+enum ProductType {
+  SAMPLE_PACK
+  PRESET_PACK
+  TEMPLATE
+  MIDI_PACK
+  STEM_PACK
+  GUIDE
+  OTHER
+}
+
+enum FileKind {
+  MP3
+  WAV
+  ZIP
+  MIDI
+  PRESET
+  TEMPLATE
+  PDF
+  OTHER
+}
+
+enum EmailStatus {
+  QUEUED
+  SENT
+  FAILED
+}
+
+// ---------------------------------------------------------------------------
+// Identity & Access
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String
+  name          String?
+  role          Role      @default(CUSTOMER)
+  emailVerified DateTime?
+  lastLoginAt   DateTime?
+  disabledAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  customer   Customer?
+  adminUser  AdminUser?
+  downloads  Download[]
+  resetTokens PasswordResetToken[]
+  auditLogs  AuditLog[]
+  analytics  AnalyticsEvent[]
+
+  @@index([createdAt])
+}
+
+model AdminUser {
+  id          String    @id @default(cuid())
+  userId      String    @unique
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  adminRole   AdminRole @default(SUPPORT)
+  // Feingranulare Rechte zusaetzlich zur Rolle, z.B. ["payouts:read","content:write"]
+  permissions String[]  @default([])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Customer {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email          String
+  name           String?
+  company        String?
+  country        String?
+  vatId          String?
+  // Kunden-ID beim Payment Provider (z.B. Stripe customer id)
+  providerCustomerId String? @unique
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  subscriptions Subscription[]
+  orders        Order[]
+  invoices      Invoice[]
+
+  @@index([email])
+}
+
+// ---------------------------------------------------------------------------
+// Katalog
+// ---------------------------------------------------------------------------
+
+model Plan {
+  id          String       @id @default(cuid())
+  key         String       @unique // starter | pro | ultimate
+  name        String
+  tagline     String?
+  description String?
+  // Preis in Cent; ueber /admin/settings aenderbar
+  priceCents  Int
+  currency    String       @default("EUR")
+  interval    PlanInterval @default(MONTH)
+  // Entitlement-Stufe: hoehere Stufe schaltet alle niedrigeren Inhalte frei
+  tier        Int          @unique
+  features    String[]     @default([])
+  highlighted Boolean      @default(false)
+  active      Boolean      @default(true)
+  sortOrder   Int          @default(0)
+  // Preis-ID beim Payment Provider (z.B. Stripe price id)
+  providerPriceId String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  subscriptions Subscription[]
+  orders        Order[]
+}
+
+model Product {
+  id          String      @id @default(cuid())
+  slug        String      @unique
+  title       String
+  subtitle    String?
+  description String?
+  type        ProductType @default(OTHER)
+  // Mindest-Tier, das ein Kunde braucht um dieses Produkt zu laden
+  minTier     Int         @default(1)
+  coverEmoji  String?
+  tags        String[]    @default([])
+  published   Boolean     @default(false)
+  isDemo      Boolean     @default(false)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  files      ProductFile[]
+  orderItems OrderItem[]
+
+  @@index([published, minTier])
+}
+
+model ProductFile {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  filename    String
+  // Interner Storage-Key. Niemals direkt oeffentlich ausliefern.
+  storageKey  String   @unique
+  mimeType    String
+  kind        FileKind @default(OTHER)
+  sizeBytes   Int
+  checksum    String?
+  // Optionaler Override; ansonsten gilt product.minTier
+  minTier     Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  downloads Download[]
+
+  @@index([productId])
+}
+
+// ---------------------------------------------------------------------------
+// Abrechnung
+// ---------------------------------------------------------------------------
+
+model Subscription {
+  id                     String             @id @default(cuid())
+  customerId             String
+  customer               Customer           @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  planId                 String
+  plan                   Plan               @relation(fields: [planId], references: [id])
+  status                 SubscriptionStatus @default(INCOMPLETE)
+  providerSubscriptionId String?            @unique
+  provider               String             @default("stripe")
+  currentPeriodStart     DateTime?
+  currentPeriodEnd       DateTime?
+  cancelAtPeriodEnd      Boolean            @default(false)
+  canceledAt             DateTime?
+  endedAt                DateTime?
+  // Kulanzfrist nach fehlgeschlagener Zahlung: Zugriff bleibt bis dahin bestehen
+  gracePeriodEndsAt      DateTime?
+  failedPaymentCount     Int                @default(0)
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
+
+  orders   Order[]
+  payments Payment[]
+  invoices Invoice[]
+
+  @@index([customerId, status])
+}
+
+model Order {
+  id             String      @id @default(cuid())
+  number         String      @unique
+  customerId     String?
+  customer       Customer?   @relation(fields: [customerId], references: [id])
+  email          String
+  planId         String?
+  plan           Plan?       @relation(fields: [planId], references: [id])
+  subscriptionId String?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+  status         OrderStatus @default(PENDING)
+  subtotalCents  Int         @default(0)
+  taxCents       Int         @default(0)
+  totalCents     Int         @default(0)
+  refundedCents  Int         @default(0)
+  currency       String      @default("EUR")
+  provider       String      @default("stripe")
+  providerSessionId String?  @unique
+  paidAt         DateTime?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  items    OrderItem[]
+  payments Payment[]
+  invoices Invoice[]
+
+  @@index([status, createdAt])
+  @@index([email])
+}
+
+model OrderItem {
+  id              String   @id @default(cuid())
+  orderId         String
+  order           Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId       String?
+  product         Product? @relation(fields: [productId], references: [id])
+  description     String
+  quantity        Int      @default(1)
+  unitAmountCents Int
+  totalCents      Int
+
+  @@index([orderId])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  orderId           String?
+  order             Order?        @relation(fields: [orderId], references: [id])
+  subscriptionId    String?
+  subscription      Subscription? @relation(fields: [subscriptionId], references: [id])
+  provider          String        @default("stripe")
+  providerPaymentId String        @unique
+  status            PaymentStatus @default(PENDING)
+  amountCents       Int
+  refundedCents     Int           @default(0)
+  currency          String        @default("EUR")
+  description       String?
+  failureReason     String?
+  paidAt            DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([status, paidAt])
+}
+
+model WebhookEvent {
+  id          String        @id @default(cuid())
+  provider    String
+  eventId     String
+  type        String
+  status      WebhookStatus @default(RECEIVED)
+  attempts    Int           @default(0)
+  payloadHash String
+  error       String?
+  processedAt DateTime?
+  createdAt   DateTime      @default(now())
+
+  // Idempotenz: eine Event-ID pro Provider wird genau einmal verarbeitet
+  @@unique([provider, eventId])
+  @@index([type, createdAt])
+}
+
+model Invoice {
+  id             String        @id @default(cuid())
+  number         String        @unique
+  customerId     String?
+  customer       Customer?     @relation(fields: [customerId], references: [id])
+  orderId        String?
+  order          Order?        @relation(fields: [orderId], references: [id])
+  subscriptionId String?
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id])
+  status         InvoiceStatus @default(ISSUED)
+  netCents       Int
+  taxCents       Int           @default(0)
+  taxRate        Int           @default(0) // in Basispunkten, 1900 = 19,00 %
+  totalCents     Int
+  currency       String        @default("EUR")
+  issuedAt       DateTime      @default(now())
+  dueAt          DateTime?
+  paidAt         DateTime?
+  // Snapshot der Rechnungsstellerdaten zum Zeitpunkt der Ausstellung
+  issuerSnapshot Json
+  buyerSnapshot  Json
+  lines          Json
+  createdAt      DateTime      @default(now())
+
+  @@index([customerId, issuedAt])
+}
+
+model Payout {
+  id               String       @id @default(cuid())
+  provider         String
+  providerPayoutId String       @unique
+  status           PayoutStatus @default(UNKNOWN)
+  amountCents      Int
+  currency         String       @default("EUR")
+  // Nur maskierter Hinweis auf das Zielkonto (z.B. "•••• 1234"). Niemals eine IBAN.
+  destinationHint  String?
+  initiatedAt      DateTime?
+  arrivalAt        DateTime?
+  failureReason    String?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  @@index([status, initiatedAt])
+}
+
+// ---------------------------------------------------------------------------
+// Auslieferung, Analytics, Audit
+// ---------------------------------------------------------------------------
+
+model Download {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productFileId String
+  productFile   ProductFile @relation(fields: [productFileId], references: [id], onDelete: Cascade)
+  // Signatur-ID des verwendeten Download-Tokens (fuer Missbrauchsanalyse)
+  tokenId       String?
+  ip            String?
+  userAgent     String?
+  bytes         Int?
+  createdAt     DateTime    @default(now())
+
+  @@index([userId, createdAt])
+  @@index([productFileId])
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  type      String
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sessionId String?
+  path      String?
+  referrer  String?
+  planKey   String?
+  valueCents Int?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  actor       User?    @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+  action      String
+  entity      String?
+  entityId    String?
+  ip          String?
+  meta        Json?
+  createdAt   DateTime @default(now())
+
+  @@index([action, createdAt])
+}
+
+model EmailMessage {
+  id        String      @id @default(cuid())
+  to        String
+  template  String
+  subject   String
+  status    EmailStatus @default(QUEUED)
+  error     String?
+  sentAt    DateTime?
+  createdAt DateTime    @default(now())
+
+  @@index([to, createdAt])
+}
+
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
