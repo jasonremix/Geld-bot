@@ -183,7 +183,42 @@ Migrationen laufen dort nicht automatisch:
 DATABASE_URL="…" npm run db:deploy
 ```
 
-### Variante B — eigener Server / Container
+### Variante B — eigener Server per Docker (empfohlen für volle Kontrolle)
+
+Vorausgesetzt: ein Server (VPS) mit Docker und einer öffentlichen IP.
+
+```bash
+git clone -b claude/music-income-bot-78b9rm https://github.com/jasonremix/Geld-bot.git
+cd Geld-bot
+cp .env.example .env          # ausfüllen, insbesondere APP_URL und Secrets
+echo "POSTGRES_PASSWORD=$(openssl rand -base64 24 | tr -d '\n/+=')" >> .env
+# DATABASE_URL passend dazu setzen, z.B.
+#   DATABASE_URL=postgresql://geldbot:<POSTGRES_PASSWORD>@db:5432/geldbot?schema=public
+docker compose up -d --build  # baut, migriert und startet
+docker compose logs -f app
+```
+
+Der Stack besteht aus drei Diensten: `db` (PostgreSQL mit Volume), `migrate`
+(einmaliger `prisma migrate deploy`) und `app` (Next.js Standalone). Die
+Anwendung lauscht nur auf `127.0.0.1:3000`; TLS und Domain übernimmt ein
+Reverse Proxy davor. Produktdateien liegen im Volume `storage`.
+
+Seed und Admin-Account danach einmalig:
+
+```bash
+docker compose run --rm migrate npx tsx prisma/seed.ts
+docker compose run --rm migrate npx tsx scripts/create-admin.ts admin@deine-domain "passwort"
+```
+
+Reverse Proxy mit automatischem TLS (Caddy, `/etc/caddy/Caddyfile`):
+
+```
+bot-jasonremix.com {
+    reverse_proxy 127.0.0.1:3000
+}
+```
+
+### Variante C — eigener Server ohne Docker
 
 ```bash
 npm ci
@@ -208,6 +243,44 @@ User=geldbot
 ```
 
 ---
+
+## 9a. Domain aufschalten (Beispiel: bot-jasonremix.com)
+
+Damit die Seite unter der Domain erreichbar ist, müssen drei Dinge
+zusammenpassen: DNS, Zertifikat und `APP_URL`.
+
+**DNS beim Registrar setzen:**
+
+| Route              | Typ     | Name  | Wert                       |
+| ------------------ | ------- | ----- | -------------------------- |
+| Eigener Server     | `A`     | `@`   | öffentliche IP des Servers |
+| Eigener Server     | `CNAME` | `www` | `bot-jasonremix.com`       |
+| Vercel             | `A`     | `@`   | `76.76.21.21`              |
+| Vercel             | `CNAME` | `www` | `cname.vercel-dns.com`     |
+
+Die Vercel-Werte bitte im Vercel-Dashboard gegenprüfen – Vercel zeigt beim
+Hinzufügen der Domain die aktuell gültigen Zielwerte an.
+
+**Danach zwingend:**
+
+```
+APP_URL=https://bot-jasonremix.com
+```
+
+und die Anwendung neu starten. Wird die Seite über `www.` aufgerufen, während
+`APP_URL` auf die Apex-Domain zeigt, lehnt die CSRF-Prüfung jede schreibende
+Anfrage mit `403` ab – deshalb eine der beiden Varianten per Redirect auf die
+andere weiterleiten.
+
+**Zuletzt** die Webhook-URL beim Zahlungsanbieter auf
+`https://bot-jasonremix.com/api/webhooks/payment` umstellen.
+
+Prüfen:
+
+```bash
+dig +short bot-jasonremix.com          # muss die Server-IP zeigen
+curl -I https://bot-jasonremix.com     # HTTP/2 200 und gültiges Zertifikat
+```
 
 ## 10. Checkliste vor dem Livegang
 

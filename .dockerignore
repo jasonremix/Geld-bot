@@ -1,0 +1,17 @@
+node_modules
+.next
+generated
+storage
+storage-test
+coverage
+tests
+.git
+.github
+.env
+.env*.local
+*.md
+docs
+.agents
+.claude
+.windsurf
+skills-lock.json

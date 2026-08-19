@@ -31,6 +31,10 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  // Für Container-Deployments: erzeugt .next/standalone/server.js mit allen
+  // benötigten Dateien. Wird nur gesetzt, wenn NEXT_OUTPUT=standalone gilt,
+  // damit der normale Entwicklungs- und Testablauf unverändert bleibt.
+  ...(process.env.NEXT_OUTPUT === "standalone" ? { output: "standalone" as const } : {}),
   poweredByHeader: false,
   serverExternalPackages: ["@prisma/adapter-pg", "nodemailer"],
   // Nur Entwicklung: Next blockt /_next/*-Ressourcen bei abweichendem Host.

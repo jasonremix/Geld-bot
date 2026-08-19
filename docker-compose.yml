@@ -1,0 +1,55 @@
+# Vollständiger Produktions-Stack: Datenbank, Migration, Anwendung.
+#
+# Vorbereitung auf dem Server:
+#   cp .env.example .env   und alle Werte setzen (APP_URL = deine Domain!)
+#   docker compose up -d --build
+#
+# Die .env wird NICHT ins Image gebacken, sondern zur Laufzeit gelesen.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-geldbot}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD muss gesetzt sein}
+      POSTGRES_DB: ${POSTGRES_DB:-geldbot}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-geldbot}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    # Nicht nach aussen veröffentlichen – nur intern erreichbar.
+    expose:
+      - "5432"
+
+  migrate:
+    build:
+      context: .
+      target: migrator
+    env_file: [.env]
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  app:
+    build:
+      context: .
+      target: runner
+    restart: unless-stopped
+    env_file: [.env]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    ports:
+      # Nur lokal binden; TLS und Domain übernimmt der Reverse Proxy davor.
+      - "127.0.0.1:3000:3000"
+    volumes:
+      - storage:/app/storage
+
+volumes:
+  db-data:
+  storage:
