@@ -218,6 +218,36 @@ bot-jasonremix.com {
 }
 ```
 
+### Variante B2 — ohne Terminal, komplett über den Browser (auch vom Handy)
+
+Für den Fall, dass kein Rechner mit Terminal zur Verfügung steht. Der Server
+wird gemietet und über die Weboberfläche des Anbieters verwaltet; alle
+Schritte funktionieren auf einem Handy-Browser.
+
+1. **render.com** öffnen, mit GitHub anmelden.
+2. **New → Blueprint**, dieses Repository und den Branch wählen.
+   Render liest `render.yaml`, legt PostgreSQL und den Web-Dienst an und
+   erzeugt `AUTH_SECRET`, `CSRF_SECRET` und `DOWNLOAD_SIGNING_SECRET` selbst.
+3. Die als `sync: false` markierten Variablen im Dashboard ausfüllen –
+   mindestens `APP_URL` (später die eigene Domain, zunächst die von Render
+   vergebene `…onrender.com`-Adresse).
+4. Deploy abwarten. `preDeployCommand` führt `prisma migrate deploy` aus,
+   das Volume unter `/app/storage` hält die Produktdateien dauerhaft.
+5. Seed und Admin-Account einmalig über **Shell** im Render-Dashboard:
+
+   ```bash
+   npx tsx prisma/seed.ts
+   npx tsx scripts/create-admin.ts admin@deine-domain "passwort"
+   ```
+
+6. Domain unter **Settings → Custom Domain** hinzufügen, die dort angezeigten
+   DNS-Einträge beim Registrar eintragen, danach `APP_URL` auf die Domain
+   ändern und neu deployen.
+
+Gleichwertige Alternativen mit persistentem Volume: Railway, Fly.io,
+Coolify auf einem eigenen VPS. Nicht geeignet ist Vercel/Netlify, solange
+die Dateiablage lokal ist – dort fehlt der persistente Speicher.
+
 ### Variante C — eigener Server ohne Docker
 
 ```bash

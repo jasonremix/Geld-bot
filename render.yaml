@@ -1,0 +1,85 @@
+# ---------------------------------------------------------------------------
+# Render-Blueprint: Deployment ohne Terminal, komplett über den Browser
+# (funktioniert damit auch vom Handy aus).
+#
+# Ablauf: render.com → New → Blueprint → dieses Repository wählen.
+# Render liest diese Datei, legt Datenbank und Dienst an, erzeugt die Secrets
+# selbst und führt vor jedem Start die Datenbankmigration aus.
+#
+# HINWEIS: Vor dem ersten Deploy im Dashboard prüfen – Render ändert
+# gelegentlich Plan-Namen und Feldnamen. Die Werte unten sind bewusst
+# minimal gehalten, damit möglichst wenig schiefgehen kann.
+# ---------------------------------------------------------------------------
+
+databases:
+  - name: geldbot-db
+    databaseName: geldbot
+    user: geldbot
+
+services:
+  - type: web
+    name: geldbot
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    # Baut die Anwendungs-Stufe (enthält die Prisma-CLI für die Migration).
+    dockerTarget: app
+    healthCheckPath: /robots.txt
+
+    # Läuft vor jedem Start: legt fehlende Tabellen an, ist wiederholbar.
+    preDeployCommand: npx prisma migrate deploy
+
+    # Persistenter Speicher für Produktdateien. Ohne dieses Volume wären
+    # hochgeladene Samples und Presets nach jedem Neustart verloren.
+    disk:
+      name: storage
+      mountPath: /app/storage
+      sizeGB: 10
+
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: geldbot-db
+          property: connectionString
+
+      # Secrets erzeugt Render selbst – sie erscheinen nirgends im Repository.
+      - key: AUTH_SECRET
+        generateValue: true
+      - key: CSRF_SECRET
+        generateValue: true
+      - key: DOWNLOAD_SIGNING_SECRET
+        generateValue: true
+
+      # Muss exakt der später aufgeschalteten Domain entsprechen,
+      # sonst lehnt die CSRF-Prüfung Login und Checkout ab.
+      - key: APP_URL
+        sync: false
+
+      # Testmodus. Für echte Zahlungen auf "stripe" umstellen und
+      # PAYMENT_PROVIDER_SECRET sowie PAYMENT_WEBHOOK_SECRET setzen.
+      - key: PAYMENT_PROVIDER
+        value: sandbox
+      - key: PAYMENT_WEBHOOK_SECRET
+        generateValue: true
+      - key: PAYMENT_PROVIDER_SECRET
+        sync: false
+
+      - key: STORAGE_LOCAL_PATH
+        value: /app/storage
+      - key: NODE_ENV
+        value: production
+
+      # Rechnungs- und Impressumsdaten: im Dashboard ausfüllen.
+      # Solange sie fehlen, zeigt die Seite sichtbar CONFIGURE_ME an.
+      - key: BUSINESS_NAME
+        sync: false
+      - key: BUSINESS_ADDRESS
+        sync: false
+      - key: SUPPORT_EMAIL
+        sync: false
+      - key: TAX_ID
+        sync: false
+      - key: VAT_ID
+        sync: false
+      - key: INVOICE_TAX_RATE_BP
+        value: "0"
